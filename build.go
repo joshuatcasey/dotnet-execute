@@ -98,17 +98,35 @@ func Build(buildpackYMLParser BuildpackConfigParser, configParser ConfigParser, 
 			return packit.BuildResult{}, err
 		}
 
-		in := filepath.Join(context.CNBPath, "bin", "port-chooser")
 		execdDir := filepath.Join(portChooserLayer.Path, "exec.d")
 		err = os.MkdirAll(execdDir, os.ModePerm)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
-		out := filepath.Join(execdDir, "port-chooser")
 
-		err = fs.Copy(in, out)
-		if err != nil {
-			return packit.BuildResult{}, err
+		temp := filepath.Join(context.CNBPath, "bin")
+		files, err := os.ReadDir(temp)
+		var executables []string
+
+		for _, file := range files {
+			isExecutable := func(file os.DirEntry) bool {
+				return file.Type()&0111 == 0111
+			}
+
+			if isExecutable(file) {
+				executables = append(executables, filepath.Join(temp, file.Name()))
+			}
+		}
+
+		for _, executable := range executables {
+			in := filepath.Join(context.CNBPath, "bin", executable)
+			fmt.Printf("Adding executable %s\n", in)
+			out := filepath.Join(execdDir, executable)
+
+			err = fs.Copy(in, out)
+			if err != nil {
+				return packit.BuildResult{}, err
+			}
 		}
 
 		return packit.BuildResult{
